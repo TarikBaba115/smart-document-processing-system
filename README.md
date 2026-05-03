@@ -1,1 +1,0 @@
-# smart-document-processing-system
