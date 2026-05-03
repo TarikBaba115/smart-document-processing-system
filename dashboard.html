@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Document Dashboard</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+	<div class="bg-orb bg-orb-a"></div>
+	<div class="bg-orb bg-orb-b"></div>
+
+	<main class="dashboard">
+		<header class="hero">
+			<div>
+				<p class="eyebrow">Operations Hub</p>
+				<h1>Document Review Dashboard</h1>
+				<p class="sub">Track document flow, review statuses, and surface extraction issues in one place.</p>
+			</div>
+			<div class="hero-actions">
+				<button class="btn btn-ghost" id="refresh-btn">Refresh</button>
+				<button class="btn btn-primary" id="new-doc-btn">New Document</button>
+			</div>
+		</header>
+
+		<section class="stats-grid" id="stats-grid">
+			<article class="stat-card">
+				<p class="stat-label">Total documents</p>
+				<p class="stat-value" id="stat-total">0</p>
+			</article>
+			<article class="stat-card">
+				<p class="stat-label">Uploaded</p>
+				<p class="stat-value" id="stat-uploaded">0</p>
+			</article>
+			<article class="stat-card">
+				<p class="stat-label">Needs Review</p>
+				<p class="stat-value" id="stat-needs-review">0</p>
+			</article>
+			<article class="stat-card">
+				<p class="stat-label">Validated</p>
+				<p class="stat-value" id="stat-validated">0</p>
+			</article>
+			<article class="stat-card">
+				<p class="stat-label">Rejected</p>
+				<p class="stat-value" id="stat-rejected">0</p>
+			</article>
+		</section>
+
+		<section class="content-grid">
+			<article class="panel panel-documents">
+				<div class="panel-head">
+					<h2>Documents</h2>
+					<div class="filters">
+						<input type="search" id="doc-search" placeholder="Search by name or vendor" />
+						<select id="status-filter" aria-label="Filter by status">
+							<option value="all">All statuses</option>
+							<option value="uploaded">Uploaded</option>
+							<option value="needs_review">Needs Review</option>
+							<option value="validated">Validated</option>
+							<option value="rejected">Rejected</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th>Document</th>
+								<th>Vendor</th>
+								<th>Date</th>
+								<th>Status</th>
+								<th>Issues</th>
+							</tr>
+						</thead>
+						<tbody id="documents-table-body"></tbody>
+					</table>
+				</div>
+			</article>
+
+			<aside class="panel panel-issues">
+				<div class="panel-head">
+					<h2>Detected Issues</h2>
+					<span class="pill" id="issues-total-pill">0 total</span>
+				</div>
+				<ul id="issues-list" class="issues-list"></ul>
+			</aside>
+		</section>
+	</main>
+
+	<script src="dashboard.js"></script>
+</body>
+</html>

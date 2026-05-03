@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Document Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="document.css" />
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo">doc<span>·</span>review</div>
+      <div class="divider-v"></div>
+      <div class="file-chip">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/>
+          <path d="M9 2v4h4"/>
+        </svg>
+        <span id="file-chip-number"></span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="badge badge-warn"><span class="badge-dot"></span>required fields</span>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <div class="main">
+    <div class="left-col">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Document details</span>
+        </div>
+        <div class="card-body">
+          <div class="fields-grid">
+            <div class="field">
+              <label for="doc-type">Document type</label>
+              <select id="doc-type">
+                <option value="">Select type</option>
+                <option value="invoice">Invoice</option>
+                <option value="purchase_order">Purchase order</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="doc-number">Document number</label>
+              <input id="doc-number" type="text" value="" />
+            </div>
+            <div class="field" id="field-issue">
+              <label for="inv-issue">Issue date</label>
+              <input id="inv-issue" type="date" value="" oninput="validateDates()" />
+            </div>
+            <div class="field" id="field-due">
+              <label for="inv-due">Due date</label>
+              <input id="inv-due" type="date" value="" oninput="validateDates()" />
+            </div>
+            <div class="field">
+              <label for="supplier-name">Supplier name</label>
+              <input id="supplier-name" type="text" value="" />
+            </div>
+            <div class="field">
+              <label for="inv-currency">Currency</label>
+              <select id="inv-currency">
+                <option value="">Select currency</option>
+                <option selected>USD</option>
+                <option>EUR</option>
+                <option>GBP</option>
+                <option>BAM</option>
+                <option>CHF</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Line Items -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Line items</span>
+        </div>
+        <div class="card-body">
+          <div class="table-wrap" id="line-items-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:35%">Description</th>
+                  <th style="width:8%">Qty</th>
+                  <th style="width:14%">Unit price</th>
+                  <th style="width:12%">Tax %</th>
+                  <th style="width:14%">Total</th>
+                  <th style="width:6%"></th>
+                </tr>
+              </thead>
+              <tbody id="items-body">
+                <tr>
+                  <td><input class="td-input desc" type="text" value="" oninput="validateRequired()" /></td>
+                  <td><input class="td-input qty" type="number" value="" min="0" style="width:48px" oninput="recalc(this)" /></td>
+                  <td><input class="td-input price" type="number" value="" min="0" step="0.01" style="width:80px" oninput="recalc(this)" /></td>
+                  <td><input class="td-input tax" type="number" value="" min="0" step="0.1" style="width:48px" oninput="recalc(this)" /></td>
+                  <td class="row-total"></td>
+                  <td><button class="row-icon" onclick="removeRow(this)" title="Remove row">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10"/></svg>
+                  </button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <span class="field-msg field-msg-err" id="line-items-msg" style="display:none">Line items are required</span>
+
+          <button class="add-row-btn" onclick="addRow()">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3v10M3 8h10"/>
+            </svg>
+            Add line item
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Totals</span>
+        </div>
+        <div class="card-body">
+          <div class="fields-grid">
+            <div class="field">
+              <label for="t-subtotal-input">Subtotal</label>
+              <input id="t-subtotal-input" type="number" min="0" step="0.01" value="" oninput="validateRequired()" />
+            </div>
+            <div class="field">
+              <label for="t-tax-input">Tax</label>
+              <input id="t-tax-input" type="number" min="0" step="0.01" value="" oninput="validateRequired()" />
+            </div>
+            <div class="field full">
+              <label for="t-total-input">Total</label>
+              <input id="t-total-input" type="number" min="0" step="0.01" value="" oninput="validateRequired()" />
+            </div>
+          </div>
+          <div class="totals">
+            <div class="totals-row"><span>Computed subtotal</span><span id="computed-subtotal">-</span></div>
+            <div class="totals-row"><span>Computed tax</span><span id="computed-tax">-</span></div>
+            <div class="totals-row grand"><span>Computed total</span><span id="computed-total">-</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+      </div>
+
+      <!-- Right-side fixed panels -->
+      <div class="right-col">
+        <div class="right-fixed" id="right-fixed">
+          <div class="card" id="validation-issues-card">
+            <div class="card-header">
+              <span class="card-title">Validation issues</span>
+            </div>
+            <div class="card-body">
+              <div class="issues-list" id="issues-list">
+                <!-- populated by invoice.js -->
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="actions-card">
+            <div class="card-header">
+              <span class="card-title">Actions</span>
+            </div>
+            <div class="card-body">
+              <div class="actions">
+                <button id="confirm-save-btn" class="btn btn-primary">Confirm &amp; Save</button>
+                <button id="reject-btn" class="btn btn-danger">Reject Document</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+
+</div><!-- /app -->
+
+<div class="toast" id="toast"></div>
+
+<script src="document.js"></script>
+
+</body>
+</html>
