@@ -89,26 +89,15 @@
             <table>
               <thead>
                 <tr>
-                  <th style="width:35%">Description</th>
-                  <th style="width:8%">Qty</th>
-                  <th style="width:14%">Unit price</th>
+                  <th style="width:50%">Description</th>
+                  <th style="width:10%">Qty</th>
+                  <th style="width:20%">Unit price</th>
                   <th style="width:12%">Tax %</th>
                   <th style="width:14%">Total</th>
                   <th style="width:6%"></th>
                 </tr>
               </thead>
-              <tbody id="items-body">
-                <tr>
-                  <td><input class="td-input desc" type="text" value="" oninput="validateRequired()" /></td>
-                  <td><input class="td-input qty" type="number" value="" min="0" style="width:48px" oninput="recalc(this)" /></td>
-                  <td><input class="td-input price" type="number" value="" min="0" step="0.01" style="width:80px" oninput="recalc(this)" /></td>
-                  <td><input class="td-input tax" type="number" value="" min="0" step="0.1" style="width:48px" oninput="recalc(this)" /></td>
-                  <td class="row-total"></td>
-                  <td><button class="row-icon" onclick="removeRow(this)" title="Remove row">
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10"/></svg>
-                  </button></td>
-                </tr>
-              </tbody>
+              <tbody id="items-body"></tbody>
             </table>
           </div>
           <span class="field-msg field-msg-err" id="line-items-msg" style="display:none">Line items are required</span>
@@ -171,6 +160,7 @@
             </div>
             <div class="card-body">
               <div class="actions">
+                <button id="back-btn" class="btn">Cancel</button>
                 <button id="confirm-save-btn" class="btn btn-primary">Confirm &amp; Save</button>
                 <button id="reject-btn" class="btn btn-danger">Reject Document</button>
               </div>

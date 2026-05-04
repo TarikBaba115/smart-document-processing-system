@@ -12,6 +12,7 @@ const REQUIRED_FIELDS = {
 };
 
 const DATE_FIELDS = ['inv-issue', 'inv-due'];
+let currentDocumentId = null;
 
 /* ─── DOM helpers ────────────────────────────────────────────── */
 const $ = (id) => document.getElementById(id);
@@ -66,6 +67,52 @@ function setValueAndValidate(id, value) {
 function setFileChip(documentNumber) {
   const chip = $('file-chip-number');
   chip.textContent = documentNumber?.trim() || 'Document number required';
+}
+
+function parseNumber(value) {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getDefaultLineItemTaxRate(data) {
+  const netAmount = parseNumber(data?.subtotal ?? data?.netAmount);
+  const totalTaxAmount = parseNumber(data?.taxTotal ?? data?.totalTaxAmount);
+
+  if (!netAmount) return 0;
+  return (totalTaxAmount / netAmount) * 100;
+}
+
+function buildDocumentPayload() {
+  return {
+    docType: val('doc-type'),
+    supplier: val('supplier-name'),
+    docNumber: val('doc-number'),
+    issueDate: val('inv-issue'),
+    dueDate: val('inv-due'),
+    currency: val('inv-currency'),
+    subtotal: val('t-subtotal-input'),
+    taxTotal: val('t-tax-input'),
+    total: val('t-total-input')
+  };
+}
+
+function buildLineItemsPayload() {
+  return Array.from(document.querySelectorAll('#items-body tr')).map((row) => {
+    const { desc, qty, price, tax } = getRowValues(row);
+    const total = qty * price * (1 + tax / 100);
+
+    return {
+      description: desc,
+      quantity: qty,
+      unitPrice: price,
+      taxRate: tax,
+      total
+    };
+  });
+}
+
+function redirectToDashboard() {
+  window.location.href = 'dashboard.html';
 }
 
 /* ─── Date validation ────────────────────────────────────────── */
@@ -145,29 +192,28 @@ function updateComputedTotals() {
 
   const total = subtotal + taxTotal;
   $('computed-subtotal').textContent = subtotal  ? '$' + subtotal.toFixed(2)  : '-';
-  $('computed-tax').textContent       = taxTotal  ? '$' + taxTotal.toFixed(2)  : '-';
+  $('computed-tax').textContent       = taxTotal ? '$' + taxTotal.toFixed(2) : '-';
   $('computed-total').textContent     = total     ? '$' + total.toFixed(2)     : '-';
 }
 
 function hasValidLineItem() {
   return Array.from(document.querySelectorAll('#items-body tr')).some(row => {
-    const { desc, qty, price, tax } = getRowValues(row);
-    return desc && qty && price && tax !== undefined;
+    const { desc, qty, price } = getRowValues(row);
+    return desc && qty && price;
   });
 }
 
-function addRow(prefill = {}) {
+function addRow(prefill = {}, defaultTaxRate = 0) {
   const tr = document.createElement('tr');
   const desc  = String(prefill.description || '').replace(/"/g, '&quot;');
   const qty   = prefill.quantity  ?? '';
   const price = prefill.unitPrice ?? '';
-  const tax   = prefill.tax       ?? '';
-
+  const taxValue = prefill.tax ?? defaultTaxRate ?? '';
   tr.innerHTML = `
     <td><input class="td-input desc"  type="text"   value="${desc}"  oninput="runValidation()" /></td>
     <td><input class="td-input qty"   type="number" value="${qty}"   min="0" style="width:48px"  oninput="recalc(this)" /></td>
     <td><input class="td-input price" type="number" value="${price}" min="0" step="0.01" style="width:80px" oninput="recalc(this)" /></td>
-    <td><input class="td-input tax"   type="number" value="${tax}"   min="0" step="0.1"  style="width:48px" oninput="recalc(this)" /></td>
+    <td><input class="td-input tax"   type="number" value="${taxValue}" min="0" step="0.01" style="width:64px" oninput="recalc(this)" /></td>
     <td class="row-total"></td>
     <td><button class="row-icon" onclick="removeRow(this)" title="Remove row">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -211,8 +257,29 @@ function runValidation() {
   $('line-items-msg').style.display  = validLines ? 'none' : 'flex';
   if (!validLines) issues.push({ field: 'Line items', message: 'At least one valid line item required', level: 'err' });
 
+  // Subtotal and total equal expected
+  const computedSubtotal = parseFloat($('computed-subtotal').textContent.replace('$', '')) || 0;
+  const computedTotal = parseFloat($('computed-total').textContent.replace('$', '')) || 0;
+  const enteredSubtotal = parseFloat(val('t-subtotal-input')) || 0;
+  const enteredTotal = parseFloat(val('t-total-input')) || 0;
+
+  if (enteredSubtotal && Math.abs(enteredSubtotal - computedSubtotal) > 0.0001) {
+    issues.push({ field: 'Subtotal', message: 'Subtotal does not match computed value', level: 'err' });
+    setFieldError('t-subtotal-input', true, 'Subtotal does not match computed value');
+  }
+
+  if (enteredTotal && Math.abs(enteredTotal - computedTotal) > 0.0001) {
+    issues.push({ field: 'Total', message: 'Total does not match computed value', level: 'err' });
+    setFieldError('t-total-input', true, 'Total does not match computed value');
+  }
+
   renderIssues(issues);
   return issues.every(i => i.level !== 'err');
+}
+
+// compatibility wrapper used by some inline handlers
+function validateRequired() {
+  return runValidation();
 }
 
 /* ─── Issues panel ───────────────────────────────────────────── */
@@ -238,21 +305,81 @@ function renderIssues(issues) {
 
 /* ─── Actions ────────────────────────────────────────────────── */
 function handleSave() {
-  if (!runValidation()) {
-    showToast('Please fix required fields before saving');
-    return;
-  }
-  showToast('Document saved (local)');
-  document.querySelector('.saved-banner')?.classList.add('show');
+  return saveDocumentAndRedirect();
 }
 
 function handleReject() {
-  showToast('Document rejected');
+  return updateStatusAndRedirect('rejected');
+}
+
+function handleBack() {
+  return updateStatusAndRedirect('needs_review');
+}
+
+async function saveDocumentAndRedirect() {
+  if (!currentDocumentId) {
+    redirectToDashboard();
+    return;
+  }
+
+  if (!runValidation()) {
+    showToast('Please fix all errors before saving');
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/document/${encodeURIComponent(currentDocumentId)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...buildDocumentPayload(),
+        lineItems: buildLineItemsPayload()
+      })
+    });
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}));
+      throw new Error(errorPayload.error || 'Failed to save document');
+    }
+
+    redirectToDashboard();
+  } catch (err) {
+    showToast(err.message || 'Failed to save document');
+  }
+}
+
+async function updateStatusAndRedirect(status) {
+  if (!currentDocumentId) {
+    redirectToDashboard();
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/document/${encodeURIComponent(currentDocumentId)}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status })
+    });
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}));
+      throw new Error(errorPayload.error || `Failed to set status to ${status}`);
+    }
+
+    redirectToDashboard();
+  } catch (err) {
+    showToast(err.message || 'Failed to update document status');
+  }
 }
 
 /* ─── Load document ──────────────────────────────────────────── */
 async function loadDocumentFromServer() {
   const docId = new URLSearchParams(window.location.search).get('docId');
+  currentDocumentId = docId;
 
   if (!docId) {
     setFileChip('');
@@ -265,29 +392,30 @@ async function loadDocumentFromServer() {
     if (!res.ok) throw new Error('Document not found');
     const payload = await res.json();
     const data = payload.data || payload;
+    const defaultTaxRate = getDefaultLineItemTaxRate(data);
 
-    setValueAndValidate('doc-type',          data.type         || '');
-    setValueAndValidate('supplier-name',     data.supplierName || '');
-    setValueAndValidate('doc-number',        data.invoiceId    || '');
-    setValueAndValidate('inv-issue',         data.invoiceDate  || '');
-    setValueAndValidate('inv-due',           data.dueDate      || '');
-    setValueAndValidate('inv-currency',      data.currency     || '');
-    setValueAndValidate('t-subtotal-input',  data.netAmount        ?? '');
-    setValueAndValidate('t-tax-input',       data.totalTaxAmount   ?? '');
-    setValueAndValidate('t-total-input',     data.totalAmount      ?? '');
+    setValueAndValidate('doc-type',         data.docType   || '');
+    setValueAndValidate('supplier-name',    data.supplier  || '');
+    setValueAndValidate('doc-number',       data.docNumber || '');
+    setValueAndValidate('inv-issue',        data.issueDate || '');
+    setValueAndValidate('inv-due',          data.dueDate   || '');
+    setValueAndValidate('inv-currency',     data.currency  || '');
+    setValueAndValidate('t-subtotal-input', data.subtotal  ?? '');
+    setValueAndValidate('t-tax-input',      data.taxTotal  ?? '');
+    setValueAndValidate('t-total-input',    data.total     ?? '');
 
-    setFileChip(data.invoiceId || '');
+    setFileChip(data.docNumber || '');
 
     $('items-body').innerHTML = '';
     if (Array.isArray(data.lineItems) && data.lineItems.length) {
       data.lineItems.forEach(item => addRow({
-        description: item.description || item.desc        || '',
-        quantity:    item.quantity    || item.qty         || '',
-        unitPrice:   item.unit_price  || item.price       || item.amount || '',
-        tax:         item.tax         || '',
-      }));
+        description: item.description || '',
+        quantity: item.quantity || '',
+        unitPrice: item.unitPrice || '',
+        tax: item.taxRate ?? defaultTaxRate,
+      }, defaultTaxRate));
     } else {
-      addRow();
+      addRow({}, defaultTaxRate);
     }
   } catch (err) {
     console.warn('Failed to load document data:', err.message);
@@ -311,6 +439,7 @@ document.addEventListener('input', (e) => {
   if (LIVE_VALIDATE_IDS.has(e.target?.id)) runValidation();
 });
 
+$('back-btn')?.addEventListener('click', handleBack);
 $('confirm-save-btn')?.addEventListener('click', handleSave);
 $('reject-btn')?.addEventListener('click', handleReject);
 

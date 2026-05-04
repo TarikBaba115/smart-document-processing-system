@@ -70,7 +70,7 @@
 						<thead>
 							<tr>
 								<th>Document</th>
-								<th>Vendor</th>
+								<th>Type</th>
 								<th>Date</th>
 								<th>Status</th>
 								<th>Issues</th>
@@ -90,6 +90,14 @@
 			</aside>
 		</section>
 	</main>
+
+	<div class="loading-overlay" id="upload-loading" aria-hidden="true" hidden>
+		<div class="loading-card" role="status" aria-live="polite">
+			<div class="spinner" aria-hidden="true"></div>
+			<p class="loading-title">Parsing document</p>
+			<p class="loading-subtitle">Please wait while the file is being uploaded and processed.</p>
+		</div>
+	</div>
 
 	<script src="dashboard.js"></script>
 </body>

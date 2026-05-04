@@ -9,9 +9,11 @@ function ensureCredentials() {
 
 async function extractInvoiceData(file, documentType) {
   const document = await processPdfOrImage(file);
+  console.log(document.text);
 
   const data = {
     type: documentType || "invoice",
+    rawText: document.text,
     supplierName: null,
     invoiceId: null,
     invoiceDate: null,

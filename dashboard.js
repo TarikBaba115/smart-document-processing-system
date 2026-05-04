@@ -1,55 +1,4 @@
-const documentsData = [
-  {
-    id: "INV-2026-0018",
-    fileName: "Invoice_March.pdf",
-    vendor: "Apex Solutions Ltd.",
-    date: "2026-03-22",
-    status: "needs_review",
-    issues: [
-      { title: "Total mismatch", severity: "high" },
-      { title: "Due date before issue date", severity: "medium" }
-    ]
-  },
-  {
-    id: "INV-2026-0021",
-    fileName: "Vendor_Billing_April.pdf",
-    vendor: "Nova Compute GmbH",
-    date: "2026-04-04",
-    status: "validated",
-    issues: []
-  },
-  {
-    id: "INV-2026-0023",
-    fileName: "Q2_setup_fee.pdf",
-    vendor: "PixelForge Studio",
-    date: "2026-04-07",
-    status: "uploaded",
-    issues: [
-      { title: "Low confidence on phone number", severity: "low" }
-    ]
-  },
-  {
-    id: "INV-2026-0027",
-    fileName: "maintenance_contract.pdf",
-    vendor: "Sigma Infra Co.",
-    date: "2026-04-11",
-    status: "rejected",
-    issues: [
-      { title: "Missing PO reference", severity: "medium" },
-      { title: "Unrecognized tax field", severity: "low" }
-    ]
-  },
-  {
-    id: "INV-2026-0031",
-    fileName: "cloud_usage_april.pdf",
-    vendor: "Northgrid Systems",
-    date: "2026-04-13",
-    status: "needs_review",
-    issues: [
-      { title: "Possible duplicate invoice number", severity: "high" }
-    ]
-  }
-];
+let documentsData = [];
 
 const statusLabelMap = {
   uploaded: "Uploaded",
@@ -63,6 +12,7 @@ const statusFilter = document.getElementById("status-filter");
 const documentsTableBody = document.getElementById("documents-table-body");
 const issuesList = document.getElementById("issues-list");
 const issuesTotalPill = document.getElementById("issues-total-pill");
+const uploadLoading = document.getElementById("upload-loading");
 
 const stats = {
   total: document.getElementById("stat-total"),
@@ -80,15 +30,19 @@ function formatDate(value) {
   });
 }
 
+function normalizeSearchValue(value) {
+  return String(value ?? "").toLowerCase();
+}
+
 function getFilteredDocuments() {
   const query = searchInput.value.trim().toLowerCase();
   const selectedStatus = statusFilter.value;
 
   return documentsData.filter((doc) => {
     const matchesQuery =
-      doc.fileName.toLowerCase().includes(query) ||
-      doc.vendor.toLowerCase().includes(query) ||
-      doc.id.toLowerCase().includes(query);
+      normalizeSearchValue(doc.docNumber).includes(query) ||
+      normalizeSearchValue(doc.supplier).includes(query) ||
+      normalizeSearchValue(doc.uuid).includes(query);
 
     const matchesStatus = selectedStatus === "all" || doc.status === selectedStatus;
 
@@ -104,16 +58,22 @@ function renderDocumentsTable(filteredDocs) {
 
   documentsTableBody.innerHTML = filteredDocs
     .map((doc) => {
+      const docNumber = doc.docNumber || "-";
+      const docId = doc.uuid || "-";
+      const docType = doc.docType || "-";
+      const status = doc.status || "uploaded";
+      const statusLabel = statusLabelMap[status] || status;
+
       return `
-        <tr>
+        <tr class="clickable-row" data-doc-id="${docId}" tabindex="0" role="link" aria-label="Open document ${docNumber}">
           <td>
-            <div class="doc-name">${doc.fileName}</div>
-            <div class="doc-meta">${doc.id}</div>
+            <div class="doc-name">${docNumber}</div>
+            <div class="doc-meta">${docId}</div>
           </td>
-          <td>${doc.vendor}</td>
-          <td>${formatDate(doc.date)}</td>
-          <td><span class="status status-${doc.status}">${statusLabelMap[doc.status]}</span></td>
-          <td class="issues-count">${doc.issues.length}</td>
+          <td>${docType}</td>
+          <td>${doc.issueDate ? formatDate(doc.issueDate) : '-'}</td>
+          <td><span class="status status-${status}">${statusLabel}</span></td>
+          <td class="issues-count">0</td>
         </tr>
       `;
     })
@@ -121,13 +81,7 @@ function renderDocumentsTable(filteredDocs) {
 }
 
 function flattenIssues(filteredDocs) {
-  return filteredDocs.flatMap((doc) => {
-    return doc.issues.map((issue) => ({
-      ...issue,
-      documentId: doc.id,
-      fileName: doc.fileName
-    }));
-  });
+  return [];
 }
 
 function renderIssues(filteredDocs) {
@@ -165,6 +119,18 @@ function renderStats(filteredDocs) {
   stats.rejected.textContent = String(rejectedCount);
 }
 
+async function fetchDocuments() {
+  try {
+    const res = await fetch('/api/documents');
+    if (!res.ok) throw new Error('Failed to fetch documents');
+    documentsData = await res.json();
+    renderDashboard();
+  } catch (err) {
+    console.error('Error fetching documents:', err);
+    issuesList.innerHTML = '<li class="empty">Error loading documents.</li>';
+  }
+}
+
 function renderDashboard() {
   const filteredDocs = getFilteredDocuments();
   renderDocumentsTable(filteredDocs);
@@ -172,10 +138,35 @@ function renderDashboard() {
   renderStats(filteredDocs);
 }
 
+function setUploadLoading(isVisible) {
+  if (!uploadLoading) return;
+  uploadLoading.hidden = !isVisible;
+  uploadLoading.setAttribute('aria-hidden', String(!isVisible));
+}
+
+function openDocument(docId) {
+  if (!docId) return;
+  window.location.href = `document.html?docId=${encodeURIComponent(docId)}`;
+}
+
+documentsTableBody.addEventListener('click', (event) => {
+  const row = event.target.closest('tr[data-doc-id]');
+  if (!row) return;
+  openDocument(row.dataset.docId);
+});
+
+documentsTableBody.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const row = event.target.closest('tr[data-doc-id]');
+  if (!row) return;
+  event.preventDefault();
+  openDocument(row.dataset.docId);
+});
+
 searchInput.addEventListener("input", renderDashboard);
 statusFilter.addEventListener("change", renderDashboard);
 
-document.getElementById("refresh-btn").addEventListener("click", renderDashboard);
+document.getElementById("refresh-btn").addEventListener("click", fetchDocuments);
 
 document.getElementById("new-doc-btn").addEventListener("click", async () => {
   // open file picker
@@ -189,17 +180,20 @@ document.getElementById("new-doc-btn").addEventListener("click", async () => {
     const fd = new FormData();
     fd.append('file', file, file.name);
 
+    setUploadLoading(true);
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       if (!res.ok) throw new Error('Upload failed');
       const js = await res.json();
       // navigate to invoice page returned by server
       if (js && js.url) window.location.href = js.url;
+      setUploadLoading(false);
     } catch (err) {
       alert('Upload failed: ' + err.message);
+      setUploadLoading(false);
     }
   };
   input.click();
 });
 
-renderDashboard();
+fetchDocuments();
