@@ -21,8 +21,26 @@
 				<p class="sub">Track document flow, review statuses, and surface extraction issues in one place.</p>
 			</div>
 			<div class="hero-actions">
-				<button class="btn btn-ghost" id="refresh-btn">Refresh</button>
-				<button class="btn btn-primary" id="new-doc-btn">New Document</button>
+				<button class="btn btn-ghost" id="refresh-btn">
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+						<path d="M13 3v4h-4"/>
+						<path d="M3.1 9a5.5 5.5 0 019.2-2.1L13 7"/>
+						<path d="M3 13v-4h4"/>
+						<path d="M12.9 7A5.5 5.5 0 013.8 9.1L3 9"/>
+					</svg>
+					<span>Refresh</span>
+				</button>
+				<button class="btn btn-danger" id="delete-btn" hidden>Delete Selected</button>
+				<div>
+					<button class="btn btn-primary" id="new-doc-btn">
+						<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+							<path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/>
+							<path d="M9 2v4h4"/>
+						</svg>
+						<span>New Document</span>
+					</button>
+					<p class="btn-helper">Supported: PDF, JPEG, PNG, TIFF</p>
+				</div>
 			</div>
 		</header>
 
@@ -69,6 +87,7 @@
 					<table>
 						<thead>
 							<tr>
+								<th class="select-col"><span class="sr-only">Select</span></th>
 								<th>Document</th>
 								<th>Type</th>
 								<th>Date</th>

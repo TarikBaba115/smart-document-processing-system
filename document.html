@@ -6,7 +6,7 @@
 <title>Document Review</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="document.css" />
 </head>
 <body>
@@ -73,6 +73,22 @@
                 <option>GBP</option>
                 <option>BAM</option>
                 <option>CHF</option>
+                <option>CAD</option>
+                <option>AUD</option>
+                <option>NZD</option>
+                <option>JPY</option>
+                <option>CNY</option>
+                <option>SEK</option>
+                <option>NOK</option>
+                <option>DKK</option>
+                <option>PLN</option>
+                <option>CZK</option>
+                <option>HUF</option>
+                <option>RON</option>
+                <option>TRY</option>
+                <option>AED</option>
+                <option>SAR</option>
+                <option>RSD</option>
               </select>
             </div>
           </div>
@@ -90,8 +106,8 @@
               <thead>
                 <tr>
                   <th style="width:50%">Description</th>
-                  <th style="width:10%">Qty</th>
-                  <th style="width:20%">Unit price</th>
+                  <th style="width:12%">Qty</th>
+                  <th style="width:18%">Unit price</th>
                   <th style="width:12%">Tax %</th>
                   <th style="width:14%">Total</th>
                   <th style="width:6%"></th>
@@ -160,9 +176,21 @@
             </div>
             <div class="card-body">
               <div class="actions">
-                <button id="back-btn" class="btn">Cancel</button>
-                <button id="confirm-save-btn" class="btn btn-primary">Confirm &amp; Save</button>
-                <button id="reject-btn" class="btn btn-danger">Reject Document</button>
+                <button id="back-btn" class="btn">
+                  <span>Cancel</span>
+                </button>
+                <button id="confirm-save-btn" class="btn btn-primary">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M6.5 10.5 4 8l-1.5 1.5L6.5 13.5 14 6"/>
+                  </svg>
+                  <span>Confirm &amp; Save</span>
+                </button>
+                <button id="reject-btn" class="btn btn-danger">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M4 4l8 8M12 4L4 12"/>
+                  </svg>
+                  <span>Reject Document</span>
+                </button>
               </div>
             </div>
           </div>

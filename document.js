@@ -13,6 +13,8 @@ const REQUIRED_FIELDS = {
 
 const DATE_FIELDS = ['inv-issue', 'inv-due'];
 let currentDocumentId = null;
+let latestIssues = [];
+let isLeavingPage = false;
 
 /* ─── DOM helpers ────────────────────────────────────────────── */
 const $ = (id) => document.getElementById(id);
@@ -105,14 +107,83 @@ function buildLineItemsPayload() {
       description: desc,
       quantity: qty,
       unitPrice: price,
-      taxRate: tax,
+      taxRate: tax / 100,
       total
     };
   });
 }
 
 function redirectToDashboard() {
+  isLeavingPage = true;
   window.location.href = 'dashboard.html';
+}
+
+function getUnresolvedIssuesPayload() {
+  return latestIssues
+    .filter((issue) => issue && (issue.message || issue.field))
+    .map((issue) => ({
+      field: issue.field || 'Validation',
+      message: issue.message || '',
+      level: issue.level || 'err'
+    }));
+}
+
+async function persistUnresolvedIssues(options = {}) {
+  if (!currentDocumentId) return;
+
+  const issues = getUnresolvedIssuesPayload();
+  const url = `/api/document/${encodeURIComponent(currentDocumentId)}/issues/unresolved`;
+  const payload = JSON.stringify({ issues });
+
+  if (options.useBeacon && navigator.sendBeacon) {
+    const blob = new Blob([payload], { type: 'application/json' });
+    navigator.sendBeacon(url, blob);
+    return;
+  }
+
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: payload,
+    keepalive: Boolean(options.keepalive)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    if (error.error?.includes('Unique constraint')) {
+      await fixDocNumberAndRetry();
+    }
+  }
+}
+
+async function fixDocNumberAndRetry() {
+  if (!currentDocumentId) return;
+
+  try {
+    const shortId = currentDocumentId.slice(0, 8);
+    const newDocNumber = val('doc-number') + '-' + shortId;
+    
+    const response = await fetch(`/api/document/${encodeURIComponent(currentDocumentId)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...buildDocumentPayload(),
+        docNumber: newDocNumber,
+        lineItems: buildLineItemsPayload()
+      })
+    });
+
+    if (response.ok) {
+      $('doc-number').value = newDocNumber;
+      setFileChip(newDocNumber);
+    }
+  } catch (err) {
+    console.warn('Failed to fix docNumber:', err);
+  }
 }
 
 /* ─── Date validation ────────────────────────────────────────── */
@@ -211,9 +282,9 @@ function addRow(prefill = {}, defaultTaxRate = 0) {
   const taxValue = prefill.tax ?? defaultTaxRate ?? '';
   tr.innerHTML = `
     <td><input class="td-input desc"  type="text"   value="${desc}"  oninput="runValidation()" /></td>
-    <td><input class="td-input qty"   type="number" value="${qty}"   min="0" style="width:48px"  oninput="recalc(this)" /></td>
-    <td><input class="td-input price" type="number" value="${price}" min="0" step="0.01" style="width:80px" oninput="recalc(this)" /></td>
-    <td><input class="td-input tax"   type="number" value="${taxValue}" min="0" step="0.01" style="width:64px" oninput="recalc(this)" /></td>
+    <td><input class="td-input qty"   type="number" value="${qty}"   min="0"  oninput="recalc(this)" /></td>
+    <td><input class="td-input price" type="number" value="${price}" min="0" step="0.01" oninput="recalc(this)" /></td>
+    <td><input class="td-input tax"   type="number" value="${taxValue}" min="0" step="0.01" oninput="recalc(this)" /></td>
     <td class="row-total"></td>
     <td><button class="row-icon" onclick="removeRow(this)" title="Remove row">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -259,8 +330,10 @@ function runValidation() {
 
   // Subtotal and total equal expected
   const computedSubtotal = parseFloat($('computed-subtotal').textContent.replace('$', '')) || 0;
+  const computedTaxTotal = parseFloat($('computed-tax').textContent.replace('$', '')) || 0;
   const computedTotal = parseFloat($('computed-total').textContent.replace('$', '')) || 0;
   const enteredSubtotal = parseFloat(val('t-subtotal-input')) || 0;
+  const enteredTaxTotal = parseFloat(val('t-tax-input')) || 0;
   const enteredTotal = parseFloat(val('t-total-input')) || 0;
 
   if (enteredSubtotal && Math.abs(enteredSubtotal - computedSubtotal) > 0.0001) {
@@ -268,11 +341,17 @@ function runValidation() {
     setFieldError('t-subtotal-input', true, 'Subtotal does not match computed value');
   }
 
+  if (enteredTaxTotal && Math.abs(enteredTaxTotal - computedTaxTotal) > 0.0001) {
+    issues.push({ field: 'Tax', message: 'Tax does not match computed value', level: 'err' });
+    setFieldError('t-tax-input', true, 'Tax does not match computed value');
+  }
+
   if (enteredTotal && Math.abs(enteredTotal - computedTotal) > 0.0001) {
     issues.push({ field: 'Total', message: 'Total does not match computed value', level: 'err' });
     setFieldError('t-total-input', true, 'Total does not match computed value');
   }
 
+  latestIssues = issues;
   renderIssues(issues);
   return issues.every(i => i.level !== 'err');
 }
@@ -327,6 +406,26 @@ async function saveDocumentAndRedirect() {
     return;
   }
 
+  // Check docNumber uniqueness before attempting to save
+  const candidateDocNumber = val('doc-number');
+  if (candidateDocNumber) {
+    try {
+      const docsRes = await fetch('/api/documents');
+      if (docsRes.ok) {
+        const allDocs = await docsRes.json();
+        const conflict = allDocs.find(d => String(d.docNumber || '').trim() === candidateDocNumber && String(d.uuid) !== String(currentDocumentId));
+        if (conflict) {
+          setFieldError('doc-number', true, 'Document number already exists');
+          showToast(`Document number "${candidateDocNumber}" already exists. Please change it.`);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Could not verify docNumber uniqueness:', err);
+      // fall through and attempt save; server will still enforce uniqueness
+    }
+  }
+
   try {
     const response = await fetch(`/api/document/${encodeURIComponent(currentDocumentId)}`, {
       method: 'PUT',
@@ -357,6 +456,8 @@ async function updateStatusAndRedirect(status) {
   }
 
   try {
+    await persistUnresolvedIssues();
+
     const response = await fetch(`/api/document/${encodeURIComponent(currentDocumentId)}/status`, {
       method: 'PATCH',
       headers: {
@@ -367,7 +468,14 @@ async function updateStatusAndRedirect(status) {
 
     if (!response.ok) {
       const errorPayload = await response.json().catch(() => ({}));
-      throw new Error(errorPayload.error || `Failed to set status to ${status}`);
+      const errorMsg = errorPayload.error || `Failed to set status to ${status}`;
+      
+      if (errorMsg.includes('Unique constraint')) {
+        await fixDocNumberAndRetry();
+        return;
+      }
+      
+      throw new Error(errorMsg);
     }
 
     redirectToDashboard();
@@ -410,9 +518,9 @@ async function loadDocumentFromServer() {
     if (Array.isArray(data.lineItems) && data.lineItems.length) {
       data.lineItems.forEach(item => addRow({
         description: item.description || '',
-        quantity: item.quantity || '',
+        quantity: item.quantity === null || item.quantity === undefined ? '' : Math.round(Number(item.quantity)),
         unitPrice: item.unitPrice || '',
-        tax: item.taxRate ?? defaultTaxRate,
+        tax: (item.taxRate ? item.taxRate * 100 : defaultTaxRate),
       }, defaultTaxRate));
     } else {
       addRow({}, defaultTaxRate);
@@ -442,5 +550,15 @@ document.addEventListener('input', (e) => {
 $('back-btn')?.addEventListener('click', handleBack);
 $('confirm-save-btn')?.addEventListener('click', handleSave);
 $('reject-btn')?.addEventListener('click', handleReject);
+
+window.addEventListener('pagehide', () => {
+  if (isLeavingPage) return;
+  persistUnresolvedIssues({ useBeacon: true });
+});
+
+window.addEventListener('beforeunload', () => {
+  if (isLeavingPage) return;
+  persistUnresolvedIssues({ useBeacon: true });
+});
 
 loadDocumentFromServer();
