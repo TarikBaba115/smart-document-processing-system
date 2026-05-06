@@ -114,3 +114,4 @@ Validation is treated as part of the workflow rather than a separate afterthough
 - Add role-based access control.
 - Support more document formats.
 - Exploring more powerful models for data extraction from scanned documents
+- Improve project structure
