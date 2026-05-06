@@ -6,7 +6,7 @@ This project ingests business documents, extracts structured data with Google Do
 
 ## Live Application
 
-Public application link: [insert link here]
+Public application link: [https://smart-document-processing-system-pugi.onrender.com/dashboard.html]
 
 Swagger API docs: `/api-docs`
 
@@ -17,8 +17,8 @@ Swagger API docs: `/api-docs`
 - Validate missing fields, duplicate document numbers, date issues, and total mismatches.
 - Review and correct document data before saving.
 - View the document dashboard and issue list.
-- Delete multiple documents from the dashboard.
-- Generate API documentation with Swagger UI.
+- Delete documents from the dashboard.
+- API documentation with Swagger UI.
 
 ## Tech Stack
 
@@ -31,18 +31,18 @@ Swagger API docs: `/api-docs`
 
 ## Project Structure
 
-- `Repository/app.js` - Express server and API routes.
-- `Repository/invoiceProcessor.js` - Document AI extraction and enrichment.
-- `Repository/models` - Sequelize models and associations.
-- `Repository/dashboard.*` - Document list UI.
-- `Repository/document.*` - Document review UI.
-- `Repository/docker-compose.yml` - Local app and database setup.
+- `app.js` - Express server and API routes.
+- `invoiceProcessor.js` - Document AI extraction and enrichment.
+- `models` - Sequelize models and associations.
+- `dashboard.*` - Document list UI.
+- `document.*` - Document review UI.
+- `docker-compose.yml` - Local app and database setup.
 
 ## Setup
 
 ### 1. Install dependencies
 
-From the `Repository` folder:
+From the root folder:
 
 ```bash
 npm install
@@ -50,17 +50,13 @@ npm install
 
 ### 2. Configure environment variables
 
-Create a `.env` file in `Repository` and set the values your deployment needs:
+Create a `.env` file and set the values your deployment needs:
 
 ```bash
 PORT=3000
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=document_processing
-DB_USER=root
-DB_PASSWORD=root
-GOOGLE_CLOUD_PROJECT=your-gcp-project-id
-GOOGLE_APPLICATION_CREDENTIALS=C:\path\to\service-account.json
+DATABASE_URL= DIALECT://USER:PASSWORD@HOST:PORT/DATABASE (use mysql://root:root@localhost:3306/document_processing if starting app with docker compose)
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id (not needed if you have GOOGLE_APPLICATION_CREDENTIALS_JSON)
+GOOGLE_APPLICATION_CREDENTIALS_JSON=C:\path\to\service-account.json
 ```
 
 If you deploy to Render, you can provide the service account JSON through `GOOGLE_APPLICATION_CREDENTIALS_JSON` instead of mounting a file.
@@ -75,7 +71,7 @@ Open the app in your browser and use `/api-docs` for the Swagger UI.
 
 ## Docker
 
-Build the image from the `Repository` folder:
+Build the image from the root folder:
 
 ```bash
 docker build -t document-processing-app .
@@ -95,13 +91,6 @@ The included `docker-compose.yml` starts the app and a MySQL container.
 docker compose up --build
 ```
 
-## Deployment Notes
-
-- The app listens on `PORT`, which defaults to `3000`.
-- Database credentials must be supplied by the host environment.
-- Google Document AI credentials must be available through ADC or `GOOGLE_APPLICATION_CREDENTIALS_JSON`.
-- After deployment, replace the placeholder above with the public application URL.
-
 ## Approach
 
 The implementation is split into three layers.
@@ -114,23 +103,13 @@ Validation is treated as part of the workflow rather than a separate afterthough
 
 ## AI Usage
 
-- AI tools were used to accelerate implementation and documentation.
-- The final validation and business rules remain part of the application logic.
+- GitHub Copilot: generating database and api routes boilerplate, generating frontend (HTML/CSS), help with understanding code, modifying current logic
+- Claude: Help in researching, designing system, setting up Docker
+- ChatGPT: Exploring and comparing API options for document processing, setting up deployment
 
 ## Improvements
 
-- Add automated tests for extraction and validation.
+- Add unit tests for extraction and validation.
 - Add role-based access control.
-- Support more document formats and more resilient OCR fallback parsing.
-- Add richer audit history for document edits and status changes.
-
-## Submission Checklist
-
-- Repository link
-- Public application link
-- Setup instructions
-- Explanation of approach
-
-## Contact
-
-If you need to share the completed submission, send the repository link and live application link to `careers@mastery.ba`.
+- Support more document formats.
+- Exploring more powerful models for data extraction from scanned documents
