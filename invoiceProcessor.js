@@ -1,10 +1,25 @@
 const { DocumentProcessorServiceClient } = require('@google-cloud/documentai').v1;
 
-function ensureCredentials() {
-  // Fail fast with a clear error when running locally without ADC configured.
-  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.GOOGLE_CLOUD_PROJECT) {
-    throw new Error('Google Application Default Credentials not found.\nSet the environment variable GOOGLE_APPLICATION_CREDENTIALS to the path of a service account JSON, or run on GCP where ADC is available.');
+function createDocumentAiClient() {
+  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+
+  if (credentialsJson) {
+    const credentials = JSON.parse(credentialsJson);
+    if (credentials.private_key) {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    }
+
+    return new DocumentProcessorServiceClient({
+      credentials,
+      projectId: projectId || credentials.project_id,
+      apiEndpoint: process.env.DOCUMENT_AI_API_ENDPOINT || 'us-documentai.googleapis.com'
+    });
   }
+
+  return new DocumentProcessorServiceClient({
+    apiEndpoint: process.env.DOCUMENT_AI_API_ENDPOINT || 'us-documentai.googleapis.com'
+  });
 }
 
 async function extractInvoiceData(file, documentType) {
@@ -278,12 +293,7 @@ async function processPdfOrImage(file) {
 
   const name = `projects/${projectId}/locations/${location}/processors/${processorId}`;
 
-  // ensure credentials are present before creating the client to avoid metadata lookup warnings
-  ensureCredentials();
-
-  const client = new DocumentProcessorServiceClient({
-    apiEndpoint: 'us-documentai.googleapis.com',
-  });
+  const client = createDocumentAiClient();
 
   const request = {
     name,
