@@ -14,6 +14,7 @@ Swagger API docs: `/api-docs`
 
 - Upload invoice or purchase-order documents.
 - Extract supplier, document number, dates, currency, totals, and line items.
+- OCR support for images through Google Document AI API
 - Validate missing fields, duplicate document numbers, date issues, and total mismatches.
 - Review and correct document data before saving.
 - View the document dashboard and issue list.
